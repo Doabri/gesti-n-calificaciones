@@ -1,0 +1,458 @@
+﻿<!DOCTYPE html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Tarea Unidad 1 - Gestión de Calificaciones</title>
+    <style>
+        :root {
+            --rojo: #e63946;
+            --naranja: #f77f00;
+            --amarillo: #ffd166;
+            --fondo: #fff6eb;
+            --texto: #2b2b2b;
+            --gris: #ddd;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 20px;
+            background: linear-gradient(180deg, #fff6eb 0%, #fff2e0 100%);
+            color: var(--texto);
+        }
+
+        h1 {
+            text-align: center;
+            background: linear-gradient(90deg,var(--naranja),var(--rojo));
+            color: white;
+            padding: 12px 10px;
+            border-radius: 8px;
+            margin: 0 0 18px 0;
+        }
+
+        form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+            form label {
+                font-weight: bold;
+            }
+
+        #nombre {
+            padding: 8px;
+            font-size: 1rem;
+            border: 1px solid var(--gris);
+            border-radius: 6px;
+            min-width: 220px;
+        }
+
+        #calificacion {
+            padding: 8px;
+            font-size: 1rem;
+            border: 1px solid var(--gris);
+            border-radius: 6px;
+            width: 100px;
+            text-align: center;
+        }
+
+        #btnAgregar {
+            padding: 8px 14px;
+            background: var(--naranja);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+            #btnAgregar:hover {
+                filter: brightness(0.95);
+            }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        thead th {
+            background: linear-gradient(90deg,var(--rojo),var(--naranja));
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        th, td {
+            border-bottom: 1px solid #eee;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+
+        tbody tr.aprobado {
+            background: linear-gradient(90deg, rgba(255,209,102,0.2), rgba(255,245,204,0.2));
+        }
+
+        tbody tr.reprobado {
+            background: linear-gradient(90deg, rgba(230,57,70,0.08), rgba(247,127,0,0.04));
+        }
+
+        .status-badge {
+            padding: 6px 8px;
+            border-radius: 999px;
+            font-weight: 600;
+            display: inline-block;
+            min-width: 90px;
+        }
+
+        .status-aprobado {
+            background: var(--amarillo);
+            color: #222;
+        }
+
+        .status-reprobado {
+            background: var(--rojo);
+            color: #fff;
+        }
+
+        input[type="number"].calif {
+            width: 80px;
+            padding: 6px;
+            border-radius: 6px;
+            border: 1px solid var(--gris);
+            text-align: center;
+        }
+
+        .btn-eliminar {
+            background: transparent;
+            border: 1px solid var(--rojo);
+            color: var(--rojo);
+            padding: 6px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+            .btn-eliminar:hover {
+                background: rgba(230,57,70,0.06);
+            }
+
+        #mensaje {
+            margin-top: 12px;
+            font-weight: bold;
+            color: var(--rojo);
+            min-height: 1.2em;
+        }
+
+        #promedio {
+            margin-top: 6px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--texto);
+        }
+
+        @media (max-width: 600px) {
+            th, td {
+                padding: 8px;
+                font-size: 0.9rem;
+            }
+
+            input[type="number"].calif {
+                width: 64px;
+            }
+
+            form {
+                gap: 6px;
+                padding: 0 6px;
+            }
+
+            #nombre {
+                min-width: 140px;
+                width: 60%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Gestión de calificaciones</h1>
+
+    <form id="formAlumno" onsubmit="return false;">
+        <label for="nombre">Nombre del alumno:</label>
+        <input type="text" id="nombre" autocomplete="off" />
+
+        <label for="calificacion">Calificación:</label>
+        <input type="number" id="calificacion" min="0" max="100" />
+
+        <input type="button" id="btnAgregar" value="Agregar" />
+    </form>
+
+    <table aria-live="polite">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Calificación</th>
+                <th>Estatus</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="listaAlumnos"></tbody>
+    </table>
+
+    <div id="mensaje" role="status" aria-atomic="true"></div>
+    <div id="promedio" aria-live="polite"></div>
+
+    <script>
+        const nombreInput = document.getElementById('nombre');
+        const califInput = document.getElementById('calificacion');
+        const btnAgregar = document.getElementById('btnAgregar');
+        const lista = document.getElementById('listaAlumnos');
+        const mensaje = document.getElementById('mensaje');
+        const promedioDiv = document.getElementById('promedio');
+
+        function normalizaNombre(n) {
+            return n.trim().toLowerCase();
+        }
+
+        function mostrarMensaje(texto, tiempo = 3000) {
+            mensaje.textContent = texto;
+            setTimeout(function () {
+                if (mensaje.textContent === texto) {
+                    mensaje.textContent = "";
+                }
+            }, tiempo);
+        }
+
+        function obtenerNombreDeFila(tr) {
+            const input = tr.querySelector('td.nombre-cell input');
+            if (input) {
+                return input.value.trim();
+            } else {
+                const td = tr.querySelector('td.nombre-cell');
+                return td ? td.textContent.trim() : '';
+            }
+        }
+
+        function existeNombre(nombre, filaExcluir = null) {
+            const buscado = normalizaNombre(nombre);
+            for (let tr of lista.children) {
+                if (tr === filaExcluir) continue;
+                const valor = normalizaNombre(obtenerNombreDeFila(tr));
+                if (valor === buscado) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function actualizarPromedioYMensaje() {
+            const filas = Array.from(lista.children);
+            if (filas.length === 0) {
+                promedioDiv.textContent = '';
+                return;
+            }
+            let suma = 0;
+            for (let tr of filas) {
+                const inputCalif = tr.querySelector('input.calif');
+                if (!inputCalif) {
+                    promedioDiv.textContent = '';
+                    mostrarMensaje('Faltan calificaciones.');
+                    return;
+                }
+                const vStr = inputCalif.value.trim();
+                if (vStr === '') { 
+                    promedioDiv.textContent = '';
+                    mostrarMensaje('Faltan calificaciones.');
+                    return;
+                }
+                const valor = Number(vStr);
+                if (isNaN(valor)) {
+                    promedioDiv.textContent = '';
+                    mostrarMensaje('Faltan calificaciones.');
+                    return;
+                }
+                suma += valor;
+            }
+            const promedio = suma / filas.length;
+            promedioDiv.textContent = 'Promedio del grupo: ' + promedio.toFixed(2);
+            if (mensaje.textContent !== '') {
+                mensaje.textContent = '';
+            }
+        }
+
+        function actualizarEstatusFila(tr) {
+            const inputCalif = tr.querySelector('input.calif');
+            const tdStatus = tr.querySelector('.td-status');
+            tr.classList.remove('aprobado', 'reprobado');
+            if (!inputCalif || inputCalif.value.trim() === '') {
+                tdStatus.innerHTML = '<span class="status-badge">—</span>';
+                return;
+            }
+            const v = Number(inputCalif.value);
+            if (isNaN(v)) {
+                tdStatus.innerHTML = '<span class="status-badge">—</span>';
+            } else if (v >= 70) {
+                tdStatus.innerHTML = '<span class="status-badge status-aprobado">APROBADO</span>';
+                tr.classList.add('aprobado');
+            } else {
+                tdStatus.innerHTML = '<span class="status-badge status-reprobado">REPROBADO</span>';
+                tr.classList.add('reprobado');
+            }
+        }
+
+        function crearFilaAlumno(nombre, calificacion) {
+            const tr = document.createElement('tr');
+
+            const tdNombre = document.createElement('td');
+            tdNombre.classList.add('nombre-cell');
+            tdNombre.textContent = nombre;
+            tdNombre.addEventListener('dblclick', function () {
+                if (tdNombre.querySelector('input')) return;
+                const previo = tdNombre.textContent;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = previo;
+                input.style.width = '90%';
+                tdNombre.textContent = '';
+                tdNombre.appendChild(input);
+                input.focus();
+
+                function terminarEdicion(aceptar) {
+                    const nuevo = input.value.trim();
+                    if (!aceptar) {
+                        tdNombre.textContent = previo;
+                        return;
+                    }
+                    if (!nuevo) {
+                        mostrarMensaje('Ingrese un nombre válido.');
+                        tdNombre.textContent = previo;
+                        return;
+                    }
+                    if (existeNombre(nuevo, tr)) {
+                        mostrarMensaje('Error: ya existe un alumno con ese nombre.');
+                        tdNombre.textContent = previo;
+                        return;
+                    }
+                    tdNombre.textContent = nuevo;
+                }
+
+                input.addEventListener('keydown', function (ev) {
+                    if (ev.key === 'Enter') {
+                        terminarEdicion(true);
+                    } else if (ev.key === 'Escape') {
+                        terminarEdicion(false);
+                    }
+                });
+
+                input.addEventListener('blur', function () {
+                    terminarEdicion(true);
+                });
+            });
+
+            const tdCalif = document.createElement('td');
+            const inputCalif = document.createElement('input');
+            inputCalif.type = 'number';
+            inputCalif.min = 0;
+            inputCalif.max = 100;
+            inputCalif.classList.add('calif');
+            inputCalif.value = (calificacion !== '' && calificacion !== null && calificacion !== undefined) ? String(calificacion) : '';
+            inputCalif.addEventListener('input', function () {
+                const v = inputCalif.value.trim();
+                if (v !== '') {
+                    const num = Number(v);
+                    if (isNaN(num) || num < 0 || num > 100) {
+                        mostrarMensaje('Ingrese una calificación entre 0 y 100.');
+                    } else {
+                        if (mensaje.textContent.indexOf('calificación') !== -1) {
+                            mensaje.textContent = '';
+                        }
+                    }
+                }
+                actualizarEstatusFila(tr);
+                actualizarPromedioYMensaje();
+            });
+            tdCalif.appendChild(inputCalif);
+
+            const tdStatus = document.createElement('td');
+            tdStatus.classList.add('td-status');
+            tdStatus.innerHTML = '<span class="status-badge">—</span>';
+
+            const tdAcc = document.createElement('td');
+            const btnEliminar = document.createElement('button');
+            btnEliminar.type = 'button';
+            btnEliminar.classList.add('btn-eliminar');
+            btnEliminar.textContent = 'Eliminar';
+            btnEliminar.addEventListener('click', function () {
+                tr.remove();
+                actualizarPromedioYMensaje();
+            });
+            tdAcc.appendChild(btnEliminar);
+
+            tr.appendChild(tdNombre);
+            tr.appendChild(tdCalif);
+            tr.appendChild(tdStatus);
+            tr.appendChild(tdAcc);
+
+            actualizarEstatusFila(tr);
+            return tr;
+        }
+
+        function agregarAlumnoDesdeInput() {
+            const nombre = nombreInput.value.trim();
+            const califVal = califInput.value.trim();
+
+            if (!nombre) {
+                mostrarMensaje('Ingrese un nombre válido.');
+                return;
+            }
+            if (califVal === '') {
+                mostrarMensaje('Ingrese una calificación entre 0 y 100.');
+                return;
+            }
+            const calificacion = Number(califVal);
+            if (isNaN(calificacion) || calificacion < 0 || calificacion > 100) {
+                mostrarMensaje('Ingrese una calificación entre 0 y 100.');
+                return;
+            }
+
+            if (existeNombre(nombre)) {
+                mostrarMensaje('Error: ya existe un alumno con ese nombre.');
+                return;
+            }
+
+            const fila = crearFilaAlumno(nombre, calificacion);
+            lista.appendChild(fila);
+
+            nombreInput.value = '';
+            califInput.value = '';
+            nombreInput.focus();
+            actualizarPromedioYMensaje();
+        }
+
+        btnAgregar.addEventListener('click', agregarAlumnoDesdeInput);
+
+        califInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                agregarAlumnoDesdeInput();
+            }
+        });
+
+        nombreInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                califInput.focus();
+            }
+        });
+
+    </script>
+
+</body>
+</html>
+
